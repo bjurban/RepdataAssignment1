@@ -1,0 +1,73 @@
+---
+title: "assignment_1.Rmd"
+author: "Bryan Urban"
+date: "Thursday, March 12, 2015"
+output: html_document
+---
+
+This project looks at activity monitoring data. First we will look at the number of steps taken by day.
+
+## Activity Data by Day
+```{r}
+library(dplyr)
+library(lubridate)
+df <- read.csv("activity.csv")
+df$date <- ymd(df$date)
+# summary by date
+dfs <- 
+  df %>%
+  group_by(date) %>%
+  summarize(steps=sum(steps, na.rm=TRUE))
+hist(dfs$steps)
+steps_mean <- mean(dfs$steps)
+steps_median <- median(dfs$steps)
+```
+
+The mean number of steps is `r steps_mean` and the median number of steps is `r steps_median`.
+
+## Activity Data by Interval
+```{r}
+dfi <-
+  df %>%
+  group_by(interval) %>%
+  summarize(steps=mean(steps, na.rm=TRUE))
+plot(dfi$interval, dfi$steps, type='l')
+max_steps_interval <- dfi[which(dfi$steps==max(dfi$steps)),]$interval
+```
+The interval with the maximum average number of steps is `r max_steps_interval`. 
+
+## Imputing Missing Data 
+```{r}
+# fill in missing data with approximations from the mean interval steps
+df_missing <- df[is.na(df$steps),]
+missing_steps <- inner_join(df_missing, dfi, by="interval")$steps.y
+df[is.na(df$steps),]$steps <- missing_steps
+
+# recalculate mean values
+dfs <- 
+  df %>%
+  group_by(date) %>%
+  summarize(steps=sum(steps, na.rm=TRUE))
+hist(dfs$steps)
+steps_mean <- mean(dfs$steps)
+steps_median <- median(dfs$steps)
+```
+The new daily mean is `r steps_mean` and median is `r steps_median`. Values have increased slightly. Imputing missing data by interval can bias the mean and median of daily total steps.
+
+## Weekends vs. Weekdays
+```{r}
+library(lattice)
+library(directlabels)
+df$weekend <- weekdays(df$date) %in% c("Saturday", "Sunday")
+df$weekend <- sapply(df$weekend, function(x) {if(x) "Weekend" else "Weekday"})
+
+dfw <-
+  df %>%
+  group_by(weekend, interval) %>%
+  summarize(steps=mean(steps, na.rm=TRUE))
+xyplot(steps~interval|weekend, dfw, type='l')
+direct.label(xyplot(steps~interval, dfw, groups=weekend, type='l'))
+```
+On the weekends, people takemore staps laer in the day - there is a shift in the morning. Perhaps people like to sleep in on the weekends. 
+
+
